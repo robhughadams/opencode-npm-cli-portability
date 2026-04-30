@@ -111,6 +111,8 @@ export const Client = lazy(() => {
     migrate(db, entries)
   }
 
+  db.run("PRAGMA optimize = 0x10002")
+
   return db
 })
 

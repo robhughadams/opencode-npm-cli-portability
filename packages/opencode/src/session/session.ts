@@ -19,6 +19,7 @@ import { like } from "drizzle-orm"
 import { inArray } from "drizzle-orm"
 import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
+import { sql } from "drizzle-orm"
 import { SyncEvent } from "../sync"
 import type { SQL } from "drizzle-orm"
 import { PartTable, SessionTable } from "./session.sql"
@@ -436,6 +437,14 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Se
 
 export type Patch = Types.DeepMutable<SyncEvent.Event<typeof Event.Updated>["data"]["info"]>
 
+function titleSearchCondition(search?: string): SQL | undefined {
+  if (!search?.trim()) return
+  const terms = Array.from(new Set(search.match(/[\p{L}\p{N}]+/gu) ?? [])).filter((term) => term.length >= 2)
+  if (terms.length === 0) return like(SessionTable.title, `%${search}%`)
+  const match = terms.map((term) => `"${term.replaceAll('"', '""')}"*`).join(" AND ")
+  return sql`${SessionTable.id} in (select session_id from session_title_fts where title match ${match})`
+}
+
 const db = <T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T) =>
   Effect.sync(() => Database.use(fn))
 
@@ -799,8 +808,9 @@ export function* list(input?: {
   if (input?.start) {
     conditions.push(gte(SessionTable.time_updated, input.start))
   }
-  if (input?.search) {
-    conditions.push(like(SessionTable.title, `%${input.search}%`))
+  const search = titleSearchCondition(input?.search)
+  if (search) {
+    conditions.push(search)
   }
 
   const limit = input?.limit ?? 100
@@ -842,8 +852,9 @@ export function* listGlobal(input?: {
   if (input?.cursor) {
     conditions.push(lt(SessionTable.time_updated, input.cursor))
   }
-  if (input?.search) {
-    conditions.push(like(SessionTable.title, `%${input.search}%`))
+  const search = titleSearchCondition(input?.search)
+  if (search) {
+    conditions.push(search)
   }
   if (!input?.archived) {
     conditions.push(isNull(SessionTable.time_archived))

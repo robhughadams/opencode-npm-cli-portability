@@ -212,6 +212,23 @@ describe("session.list", () => {
     })
   })
 
+  test("filters by multi-word search term using FTS", async () => {
+    await using tmp = await tmpdir({ git: true })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await svc.create({ title: "postgres startup optimization notes" })
+        await svc.create({ title: "sqlite query tuning" })
+
+        const sessions = [...svc.list({ search: "startup opt" })]
+        const titles = sessions.map((s) => s.title)
+
+        expect(titles).toContain("postgres startup optimization notes")
+        expect(titles).not.toContain("sqlite query tuning")
+      },
+    })
+  })
+
   test("respects limit parameter", async () => {
     await using tmp = await tmpdir({ git: true })
     await Instance.provide({
