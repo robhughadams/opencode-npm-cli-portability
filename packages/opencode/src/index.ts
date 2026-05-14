@@ -1,41 +1,18 @@
-import yargs from "yargs"
+import yargs, { type Argv, type CommandModule } from "yargs"
 import { hideBin } from "yargs/helpers"
-import { RunCommand } from "./cli/cmd/run"
-import { GenerateCommand } from "./cli/cmd/generate"
 import * as Log from "@opencode-ai/core/util/log"
-import { ConsoleCommand } from "./cli/cmd/account"
-import { ProvidersCommand } from "./cli/cmd/providers"
-import { AgentCommand } from "./cli/cmd/agent"
-import { UpgradeCommand } from "./cli/cmd/upgrade"
-import { UninstallCommand } from "./cli/cmd/uninstall"
-import { ModelsCommand } from "./cli/cmd/models"
 import { UI } from "./cli/ui"
 import { Installation } from "./installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { FormatError } from "./cli/error"
-import { ServeCommand } from "./cli/cmd/serve"
 import { Filesystem } from "@/util/filesystem"
-import { DebugCommand } from "./cli/cmd/debug"
-import { StatsCommand } from "./cli/cmd/stats"
-import { McpCommand } from "./cli/cmd/mcp"
-import { GithubCommand } from "./cli/cmd/github"
-import { ExportCommand } from "./cli/cmd/export"
-import { ImportCommand } from "./cli/cmd/import"
-import { AttachCommand } from "./cli/cmd/tui/attach"
-import { TuiThreadCommand } from "./cli/cmd/tui/thread"
-import { AcpCommand } from "./cli/cmd/acp"
 import { EOL } from "os"
-import { WebCommand } from "./cli/cmd/web"
-import { PrCommand } from "./cli/cmd/pr"
-import { SessionCommand } from "./cli/cmd/session"
-import { DbCommand } from "./cli/cmd/db"
 import path from "path"
 import { Global } from "@opencode-ai/core/global"
 import { JsonMigration } from "@/storage/json-migration"
 import { Database } from "@/storage/db"
 import { errorMessage } from "./util/error"
-import { PluginCommand } from "./cli/cmd/plug"
 import { Heap } from "./cli/heap"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { ensureProcessMetadata } from "@opencode-ai/core/util/opencode-process"
@@ -64,6 +41,32 @@ function show(out: string) {
     return
   }
   process.stderr.write(out)
+}
+
+function lazyCommand(
+  input: Pick<CommandModule<object, object>, "command" | "describe" | "aliases">,
+  load: () => Promise<unknown>,
+) {
+  let command: Promise<CommandModule<object, object>> | undefined
+
+  async function resolve() {
+    command ??= load().then((result) => result as CommandModule<object, object>)
+    return command
+  }
+
+  return {
+    ...input,
+    async builder(yargs: Argv<object>) {
+      const loaded = await resolve()
+      if (!loaded.builder) return yargs
+      if (typeof loaded.builder === "function") return loaded.builder(yargs)
+      return yargs.options(loaded.builder)
+    },
+    async handler(args) {
+      const loaded = await resolve()
+      return loaded.handler(args)
+    },
+  } satisfies CommandModule<object, object>
 }
 
 const cli = yargs(args)
@@ -154,29 +157,122 @@ const cli = yargs(args)
   })
   .usage("")
   .completion("completion", "generate shell completion script")
-  .command(AcpCommand)
-  .command(McpCommand)
-  .command(TuiThreadCommand)
-  .command(AttachCommand)
-  .command(RunCommand)
-  .command(GenerateCommand)
-  .command(DebugCommand)
-  .command(ConsoleCommand)
-  .command(ProvidersCommand)
-  .command(AgentCommand)
-  .command(UpgradeCommand)
-  .command(UninstallCommand)
-  .command(ServeCommand)
-  .command(WebCommand)
-  .command(ModelsCommand)
-  .command(StatsCommand)
-  .command(ExportCommand)
-  .command(ImportCommand)
-  .command(GithubCommand)
-  .command(PrCommand)
-  .command(SessionCommand)
-  .command(PluginCommand)
-  .command(DbCommand)
+  .command(
+    lazyCommand({ command: "acp", describe: "start ACP (Agent Client Protocol) server" }, () =>
+      import("./cli/cmd/acp").then((module) => module.AcpCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "mcp", describe: "manage MCP (Model Context Protocol) servers" }, () =>
+      import("./cli/cmd/mcp").then((module) => module.McpCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "$0 [project]", describe: "start opencode tui" }, () =>
+      import("./cli/cmd/tui/thread").then((module) => module.TuiThreadCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "attach <url>", describe: "attach to opencode server" }, () =>
+      import("./cli/cmd/tui/attach").then((module) => module.AttachCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "run [message..]", describe: "run opencode with a message" }, () =>
+      import("./cli/cmd/run").then((module) => module.RunCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "generate", describe: undefined }, () =>
+      import("./cli/cmd/generate").then((module) => module.GenerateCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "debug", describe: "debugging and troubleshooting tools" }, () =>
+      import("./cli/cmd/debug/index").then((module) => module.DebugCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "console", describe: false }, () =>
+      import("./cli/cmd/account").then((module) => module.ConsoleCommand),
+    ),
+  )
+  .command(
+    lazyCommand(
+      { command: "providers", aliases: ["auth"], describe: "manage AI providers and credentials" },
+      () => import("./cli/cmd/providers").then((module) => module.ProvidersCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "agent", describe: "manage agents" }, () =>
+      import("./cli/cmd/agent").then((module) => module.AgentCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "upgrade [target]", describe: "upgrade opencode to the latest or a specific version" }, () =>
+      import("./cli/cmd/upgrade").then((module) => module.UpgradeCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "uninstall", describe: "uninstall opencode and remove all related files" }, () =>
+      import("./cli/cmd/uninstall").then((module) => module.UninstallCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "serve", describe: "starts a headless opencode server" }, () =>
+      import("./cli/cmd/serve").then((module) => module.ServeCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "web", describe: "start opencode server and open web interface" }, () =>
+      import("./cli/cmd/web").then((module) => module.WebCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "models [provider]", describe: "list all available models" }, () =>
+      import("./cli/cmd/models").then((module) => module.ModelsCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "stats", describe: "show token usage and cost statistics" }, () =>
+      import("./cli/cmd/stats").then((module) => module.StatsCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "export [sessionID]", describe: "export session data as JSON" }, () =>
+      import("./cli/cmd/export").then((module) => module.ExportCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "import <file>", describe: "import session data from JSON file or URL" }, () =>
+      import("./cli/cmd/import").then((module) => module.ImportCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "github", describe: "manage GitHub agent" }, () =>
+      import("./cli/cmd/github").then((module) => module.GithubCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "pr <number>", describe: "fetch and checkout a GitHub PR branch, then run opencode" }, () =>
+      import("./cli/cmd/pr").then((module) => module.PrCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "session", describe: "manage sessions" }, () =>
+      import("./cli/cmd/session").then((module) => module.SessionCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "plugin <module>", aliases: ["plug"], describe: "install plugin and update config" }, () =>
+      import("./cli/cmd/plug").then((module) => module.PluginCommand),
+    ),
+  )
+  .command(
+    lazyCommand({ command: "db", describe: "database tools" }, () =>
+      import("./cli/cmd/db").then((module) => module.DbCommand),
+    ),
+  )
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||
@@ -193,11 +289,16 @@ const cli = yargs(args)
 
 try {
   if (args.includes("-h") || args.includes("--help")) {
+    let printed = false
     await cli.parse(args, (err: Error | undefined, _argv: unknown, out: string) => {
       if (err) throw err
       if (!out) return
+      printed = true
       show(out)
     })
+    if (!printed && args.every((arg) => arg.startsWith("-"))) {
+      show(await cli.getHelp())
+    }
   } else {
     await cli.parse()
   }
