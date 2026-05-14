@@ -1,3 +1,13 @@
+## Fork notice
+
+This is a personal fork of [anomalyco/opencode](https://github.com/anomalyco/opencode) maintained by @robhughadams.
+Upstream is tracked as the `upstream` remote; sync with `git fetch upstream && git merge upstream/dev`.
+
+Local divergences from upstream:
+- Lazy CLI command loading (`packages/opencode/src/index.ts`)
+- AGENTS.md-aware commit/push policy in bash system prompt (`packages/opencode/src/tool/bash.txt`)
+- FTS (full-text search) for session title search instead of simple LIKE
+
 - To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
 - ALWAYS USE PARALLEL TOOLS WHEN APPLICABLE.
 - The default branch in this repo is `dev`.

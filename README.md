@@ -8,6 +8,10 @@
   </a>
 </p>
 <p align="center">The open source AI coding agent.</p>
+
+> **Personal fork** of [anomalyco/opencode](https://github.com/anomalyco/opencode) by [@robhughadams](https://github.com/robhughadams).
+> Local changes: lazy CLI loading, AGENTS.md-aware commit policy, FTS session search.
+> Upstream remote: `git fetch upstream && git merge upstream/dev`.
 <p align="center">
   <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/opencode-ai"><img alt="npm" src="https://img.shields.io/npm/v/opencode-ai?style=flat-square" /></a>
