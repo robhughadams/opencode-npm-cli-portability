@@ -49,7 +49,8 @@ console.log(`Loaded ${migrations.length} migrations`)
 
 const singleFlag = process.argv.includes("--single")
 const baselineFlag = process.argv.includes("--baseline")
-const skipInstall = process.argv.includes("--skip-install")
+const debianCliFlag = process.argv.includes("--debian-cli")
+const skipInstall = process.argv.includes("--skip-install") || debianCliFlag
 const sourcemapsFlag = process.argv.includes("--sourcemaps")
 const plugin = createSolidTransformPlugin()
 const skipEmbedWebUi = process.argv.includes("--skip-embed-web-ui")
@@ -143,8 +144,10 @@ const allTargets: {
   },
 ]
 
-const targets = singleFlag
-  ? allTargets.filter((item) => {
+const targets = debianCliFlag
+  ? allTargets.filter((item) => item.os === "linux" && item.arch === "x64" && item.abi === undefined && item.avx2 !== false)
+  : singleFlag
+    ? allTargets.filter((item) => {
       if (item.os !== process.platform || item.arch !== process.arch) {
         return false
       }
@@ -162,7 +165,7 @@ const targets = singleFlag
 
       return true
     })
-  : allTargets
+    : allTargets
 
 await $`rm -rf dist`
 
