@@ -111,6 +111,9 @@
     "type": "git",
     "url": "https://github.com/anomalyco/opencode"
   },
+  "opencodeFork": {
+    "versionMajor": 666
+  },
   "license": "MIT",
   "prettier": {
     "semi": false,
