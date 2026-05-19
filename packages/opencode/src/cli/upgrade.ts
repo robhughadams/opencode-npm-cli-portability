@@ -5,7 +5,7 @@ import { Installation } from "@/installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { GlobalBus } from "@/bus/global"
 
-const AUTO_UPDATE_ENABLED = Boolean(process.env.OPENCODE_FORK_ENABLE_AUTOUPDATE)
+const AUTO_UPDATE_ENABLED = false
 
 export async function upgrade() {
   if (!AUTO_UPDATE_ENABLED) return
