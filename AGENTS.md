@@ -3,6 +3,8 @@
 This is a personal fork of [anomalyco/opencode](https://github.com/anomalyco/opencode) maintained by @robhughadams.
 Upstream is tracked as the `upstream` remote; sync with `git fetch upstream && git merge upstream/dev`.
 
+Treat this repository as a personal fork first, not as a pure clone of upstream. Repo-specific guidance in this file may intentionally differ from stock/upstream OpenCode behavior and should take precedence for work in this fork. Do not assume upstream defaults, policies, or branch conventions apply unchanged here, and do not "fix" local divergences back to upstream unless explicitly asked.
+
 Local divergences from upstream:
 - Lazy CLI command loading (`packages/opencode/src/index.ts`)
 - AGENTS.md-aware commit/push policy in bash system prompt (`packages/opencode/src/tool/bash.txt`)
