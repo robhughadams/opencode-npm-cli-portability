@@ -8,10 +8,9 @@ import { NamedError } from "@opencode-ai/core/util/error"
 import { FormatError } from "./cli/error"
 import { Filesystem } from "@/util/filesystem"
 import { EOL } from "os"
-import path from "path"
 import { Global } from "@opencode-ai/core/global"
 import { JsonMigration } from "@/storage/json-migration"
-import { Database } from "@/storage/db"
+import { Database } from "@opencode-ai/core/database/database"
 import { errorMessage } from "./util/error"
 import { Heap } from "./cli/heap"
 import { drizzle } from "drizzle-orm/bun-sqlite"
@@ -119,7 +118,7 @@ const cli = yargs(args)
       run_id: processMetadata.runID,
     })
 
-    const marker = path.join(Global.Path.data, "opencode.db")
+    const marker = Database.path()
     if (!(await Filesystem.exists(marker))) {
       const tty = process.stderr.isTTY
       process.stderr.write("Performing one time database migration, may take a few minutes..." + EOL)
@@ -129,8 +128,9 @@ const cli = yargs(args)
       const reset = "\x1b[0m"
       let last = -1
       if (tty) process.stderr.write("\x1b[?25l")
+      const sqlite = new (await import("bun:sqlite")).Database(marker)
       try {
-        await JsonMigration.run(drizzle({ client: Database.Client().$client }), {
+        await JsonMigration.run(drizzle({ client: sqlite }), {
           progress: (event) => {
             const percent = Math.floor((event.current / event.total) * 100)
             if (percent === last && event.current !== event.total) return
@@ -148,6 +148,7 @@ const cli = yargs(args)
           },
         })
       } finally {
+        sqlite.close()
         if (tty) process.stderr.write("\x1b[?25h")
         else {
           process.stderr.write(`sqlite-migration:done${EOL}`)
