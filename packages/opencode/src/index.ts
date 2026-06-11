@@ -1,36 +1,12 @@
 import yargs, { type Argv, type CommandModule } from "yargs"
 import { hideBin } from "yargs/helpers"
-import * as Log from "@opencode-ai/core/util/log"
 import { UI } from "./cli/ui"
-import { Installation } from "./installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
-import { NamedError } from "@opencode-ai/core/util/error"
 import { FormatError } from "./cli/error"
-import { Filesystem } from "@/util/filesystem"
 import { EOL } from "os"
-import path from "path"
-import { Global } from "@opencode-ai/core/global"
-import { JsonMigration } from "@/storage/json-migration"
-import { Database } from "@/storage/db"
+import { EOL } from "os"
 import { errorMessage } from "./util/error"
 import { Heap } from "./cli/heap"
-import { drizzle } from "drizzle-orm/bun-sqlite"
-import { ensureProcessMetadata } from "@opencode-ai/core/util/opencode-process"
-import { isRecord } from "@/util/record"
-
-const processMetadata = ensureProcessMetadata("main")
-
-process.on("unhandledRejection", (e) => {
-  Log.Default.error("rejection", {
-    e: errorMessage(e),
-  })
-})
-
-process.on("uncaughtException", (e) => {
-  Log.Default.error("exception", {
-    e: errorMessage(e),
-  })
-})
 
 const args = hideBin(process.argv)
 
@@ -38,7 +14,7 @@ function show(out: string) {
   const text = out.trimStart()
   if (!text.startsWith("opencode ")) {
     process.stderr.write(UI.logo() + EOL + EOL)
-    process.stderr.write(text)
+    process.stderr.write(text + EOL)
     return
   }
   process.stderr.write(out)
@@ -92,69 +68,17 @@ const cli = yargs(args)
     type: "boolean",
   })
   .middleware(async (opts) => {
+    if (opts.printLogs) process.env.OPENCODE_PRINT_LOGS = "1"
+    if (opts.logLevel) process.env.OPENCODE_LOG_LEVEL = opts.logLevel
     if (opts.pure) {
       process.env.OPENCODE_PURE = "1"
     }
-
-    await Log.init({
-      print: process.argv.includes("--print-logs"),
-      dev: Installation.isLocal(),
-      level: (() => {
-        if (opts.logLevel) return opts.logLevel as Log.Level
-        if (Installation.isLocal()) return "DEBUG"
-        return "INFO"
-      })(),
-    })
 
     Heap.start()
 
     process.env.AGENT = "1"
     process.env.OPENCODE = "1"
     process.env.OPENCODE_PID = String(process.pid)
-
-    Log.Default.info("opencode", {
-      version: InstallationVersion,
-      args: process.argv.slice(2),
-      process_role: processMetadata.processRole,
-      run_id: processMetadata.runID,
-    })
-
-    const marker = path.join(Global.Path.data, "opencode.db")
-    if (!(await Filesystem.exists(marker))) {
-      const tty = process.stderr.isTTY
-      process.stderr.write("Performing one time database migration, may take a few minutes..." + EOL)
-      const width = 36
-      const orange = "\x1b[38;5;214m"
-      const muted = "\x1b[0;2m"
-      const reset = "\x1b[0m"
-      let last = -1
-      if (tty) process.stderr.write("\x1b[?25l")
-      try {
-        await JsonMigration.run(drizzle({ client: Database.Client().$client }), {
-          progress: (event) => {
-            const percent = Math.floor((event.current / event.total) * 100)
-            if (percent === last && event.current !== event.total) return
-            last = percent
-            if (tty) {
-              const fill = Math.round((percent / 100) * width)
-              const bar = `${"■".repeat(fill)}${"･".repeat(width - fill)}`
-              process.stderr.write(
-                `\r${orange}${bar} ${percent.toString().padStart(3)}%${reset} ${muted}${event.label.padEnd(12)} ${event.current}/${event.total}${reset}`,
-              )
-              if (event.current === event.total) process.stderr.write("\n")
-            } else {
-              process.stderr.write(`sqlite-migration:${percent}${EOL}`)
-            }
-          },
-        })
-      } finally {
-        if (tty) process.stderr.write("\x1b[?25h")
-        else {
-          process.stderr.write(`sqlite-migration:done${EOL}`)
-        }
-      }
-      process.stderr.write("Database migration complete." + EOL)
-    }
   })
   .usage("")
   .completion("completion", "generate shell completion script")
@@ -304,42 +228,10 @@ try {
     await cli.parse()
   }
 } catch (e) {
-  let data: Record<string, any> = {}
-  if (e instanceof Error) {
-    Object.assign(data, {
-      name: e.name,
-      message: e.message,
-      cause: e.cause?.toString(),
-      stack: e.stack,
-    })
-  }
-
-  if (e instanceof NamedError) {
-    const obj = e.toObject()
-    if (isRecord(obj.data)) {
-      for (const [key, value] of Object.entries(obj.data)) {
-        if (key === "name" || key === "stack" || key === "cause") continue
-        data[key] = value
-      }
-    }
-  }
-
-  if (e instanceof ResolveMessage) {
-    Object.assign(data, {
-      name: e.name,
-      message: e.message,
-      code: e.code,
-      specifier: e.specifier,
-      referrer: e.referrer,
-      position: e.position,
-      importKind: e.importKind,
-    })
-  }
-  Log.Default.error("fatal", data)
   const formatted = FormatError(e)
   if (formatted) UI.error(formatted)
   if (formatted === undefined) {
-    UI.error("Unexpected error, check log file at " + Log.file() + " for more details" + EOL)
+    UI.error("Unexpected error" + EOL)
     process.stderr.write(errorMessage(e) + EOL)
   }
   process.exitCode = 1
