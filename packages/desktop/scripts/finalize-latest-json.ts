@@ -103,6 +103,7 @@ function pick(list: Item[], exts: string[]) {
     const found = list.find((item) => item.url.split("?")[0]?.toLowerCase().endsWith(ext))
     if (found) return found.url
   }
+  return undefined
 }
 
 function link(raw: string) {

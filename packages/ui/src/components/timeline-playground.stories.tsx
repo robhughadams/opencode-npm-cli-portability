@@ -289,7 +289,7 @@ I'll need to:
 3. Add CSS variable controls
 4. Implement the export functionality
 
-This should be straightforward given the existing component architecture.`,
+  This should be straightforward given the existing component architecture.`,
 ]
 
 const TOOL_SAMPLES = {
@@ -419,6 +419,12 @@ const TOOL_SAMPLES = {
     },
   },
 }
+
+const markdownSampleKeys = Object.keys(MARKDOWN_SAMPLES).filter(
+  (key): key is keyof typeof MARKDOWN_SAMPLES => key in MARKDOWN_SAMPLES,
+)
+
+const toolSampleKeys = Object.keys(TOOL_SAMPLES).filter((key): key is keyof typeof TOOL_SAMPLES => key in TOOL_SAMPLES)
 
 // ---------------------------------------------------------------------------
 // Fake data generators
@@ -1684,7 +1690,7 @@ function Playground() {
                 Appends to the last turn's assistant parts
               </div>
               <div style={{ display: "flex", "flex-wrap": "wrap", gap: "4px" }}>
-                <For each={Object.keys(MARKDOWN_SAMPLES) as (keyof typeof MARKDOWN_SAMPLES)[]}>
+                <For each={markdownSampleKeys}>
                   {(key) => (
                     <button style={btnStyle} onClick={() => addText(key)}>
                       {key}
@@ -1702,7 +1708,7 @@ function Playground() {
                 Appends to the last turn's assistant parts
               </div>
               <div style={{ display: "flex", "flex-wrap": "wrap", gap: "4px" }}>
-                <For each={Object.keys(TOOL_SAMPLES) as (keyof typeof TOOL_SAMPLES)[]}>
+                <For each={toolSampleKeys}>
                   {(key) => (
                     <button style={btnStyle} onClick={() => addTool(key)}>
                       {key}
@@ -1961,7 +1967,7 @@ function Playground() {
 
       {/* Main area: timeline preview */}
       <div
-        ref={previewRef!}
+        ref={previewRef}
         style={{ flex: "1", overflow: "auto", "min-width": "0", "background-color": "var(--background-stronger)" }}
       >
         <DataProvider data={data()} directory="/project">
