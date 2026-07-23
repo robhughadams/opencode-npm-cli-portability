@@ -17,7 +17,7 @@ install: install-binary
 
 install-binary:
 	bun install
-	cd packages/opencode && bun run build --single
+	cd packages/opencode && OPENCODE_CHANNEL=latest bun run build --single
 	./install --binary packages/opencode/dist/opencode-linux-x64/bin/opencode --no-modify-path
 
 clean:
