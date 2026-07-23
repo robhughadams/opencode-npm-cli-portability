@@ -1,19 +1,24 @@
-.PHONY: help install clean build lint typecheck check test dev
+.PHONY: help install install-binary clean build lint typecheck check test dev
 
 help:
 	@echo "Available targets:"
-	@echo "  install       Install dependencies"
-	@echo "  build         Build the entire monorepo"
-	@echo "  lint          Run linting (oxlint)"
-	@echo "  typecheck     Run TypeScript type checking"
-	@echo "  check         Run lint and typecheck"
-	@echo "  clean         Clean build artifacts"
-	@echo "  dev           Start development server"
-	@echo "  test          Run tests (root tests disabled)"
-	@echo "  help          Show this help message"
+	@echo "  install        Install dependencies"
+	@echo "  install-binary Build and install the opencode binary locally"
+	@echo "  build          Build the entire monorepo"
+	@echo "  lint           Run linting (oxlint)"
+	@echo "  typecheck      Run TypeScript type checking"
+	@echo "  check          Run lint and typecheck"
+	@echo "  clean          Clean build artifacts"
+	@echo "  dev            Start development server"
+	@echo "  test           Run tests (root tests disabled)"
+	@echo "  help           Show this help message"
 
-install:
+install: install-binary
+
+install-binary:
 	bun install
+	cd packages/opencode && bun run build --single
+	./install --binary packages/opencode/dist/opencode-linux-x64/bin/opencode --no-modify-path
 
 clean:
 	rm -rf ./packages/*/dist

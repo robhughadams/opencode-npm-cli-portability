@@ -2016,13 +2016,8 @@ function Playground() {
 
       {/* Main area: timeline preview */}
       <div
-<<<<<<< HEAD
         ref={previewRef}
-        style={{ flex: "1", overflow: "auto", "min-width": "0", "background-color": "var(--background-stronger)" }}
-=======
-        ref={previewRef!}
         style={{ flex: "1", overflow: "auto", "min-width": "0", "background-color": "var(--v2-background-bg-base)" }}
->>>>>>> upstream/dev
       >
         <DataProvider data={data()} directory="/project">
           <FileComponentProvider component={FileStub}>

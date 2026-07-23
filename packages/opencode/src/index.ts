@@ -9,6 +9,8 @@ import { JsonMigration } from "@/storage/json-migration"
 import { Database } from "@opencode-ai/core/database/database"
 import { errorMessage } from "./util/error"
 import { Heap } from "./cli/heap"
+import { AttachCommand } from "./cli/cmd/attach"
+import { TuiThreadCommand } from "./cli/cmd/tui"
 
 const args = hideBin(process.argv)
 
@@ -94,16 +96,8 @@ const cli = yargs(args)
       import("./cli/cmd/mcp").then((module) => module.McpCommand),
     ),
   )
-  .command(
-    lazyCommand({ command: "$0 [project]", describe: "start opencode tui" }, () =>
-      import("./cli/cmd/tui/thread").then((module) => module.TuiThreadCommand),
-    ),
-  )
-  .command(
-    lazyCommand({ command: "attach <url>", describe: "attach to opencode server" }, () =>
-      import("./cli/cmd/tui/attach").then((module) => module.AttachCommand),
-    ),
-  )
+  .command(TuiThreadCommand)
+  .command(AttachCommand)
   .command(
     lazyCommand({ command: "run [message..]", describe: "run opencode with a message" }, () =>
       import("./cli/cmd/run").then((module) => module.RunCommand),
