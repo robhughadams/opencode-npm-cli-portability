@@ -17,6 +17,7 @@ install: install-binary
 
 install-binary:
 	bun install
+	bun test --cwd packages/opencode --timeout 30000
 	cd packages/opencode && OPENCODE_CHANNEL=latest bun run build --single
 	./install --binary packages/opencode/dist/opencode-linux-x64/bin/opencode --no-modify-path
 

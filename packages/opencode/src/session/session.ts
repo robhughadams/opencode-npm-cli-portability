@@ -1125,6 +1125,6 @@ export function* listGlobal(input?: {
   }
 }
 
-export const node = LayerNode.make(layer, [BackgroundJob.node, RuntimeFlags.node, Database.node, EventV2Bridge.node])
+export const node = LayerNode.make({ service: Service, layer, deps: [BackgroundJob.node, RuntimeFlags.node, Database.node, EventV2Bridge.node] })
 
 export * as Session from "./session"
