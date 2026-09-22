@@ -6,6 +6,8 @@ BUN ?= /home/rob/.bun-1.4.2/bin/bun
 # Compile-time channel is mandatory: it bakes the opencode-v2trial.db filename that
 # isolates the trial from the v1 live install. Never latest.
 CHANNEL ?= v2trial
+# env override because script/src/index.ts returns OPENCODE_VERSION verbatim (no npm fetch, no 2.0.0 floor); +date suffix keeps builds distinguishable.
+V ?= 666.0.0+$(shell date -u +%Y%m%d%H%M)
 INSTALL_DIR ?= /home/rob/.opencode-v2/bin
 OUTDIR ?= $(CURDIR)/packages/cli/dist-v2trial
 
@@ -23,7 +25,7 @@ help:
 	@echo "  build               Build the v2 trial binary only (channel $(CHANNEL))"
 	@echo "  clean               Remove build artifacts"
 	@echo "  help                Show this help message"
-	@echo "Variables: BUN=$(BUN) CHANNEL=$(CHANNEL) INSTALL_DIR=$(INSTALL_DIR) OUTDIR=$(OUTDIR)"
+	@echo "Variables: BUN=$(BUN) CHANNEL=$(CHANNEL) V=$(V) INSTALL_DIR=$(INSTALL_DIR) OUTDIR=$(OUTDIR)"
 
 bun-check:
 	@test -x "$(BUN)" || { echo "error: pinned bun not found at $(BUN) (v2 requires the packageManager-pinned bun; the default ~/.bun/bin/bun is v1-only)" >&2; exit 1; }
@@ -38,7 +40,7 @@ test-gate: bun-check
 	$(BUN) test --cwd packages/cli --timeout 30000
 
 build: bun-check channel-check
-	@PATH="$(dir $(BUN)):$$PATH" OPENCODE_CHANNEL=$(CHANNEL) $(BUN) run --cwd packages/cli script/build.ts --single --outdir=$(ABS_OUTDIR)
+	@PATH="$(dir $(BUN)):$$PATH" OPENCODE_CHANNEL=$(CHANNEL) OPENCODE_VERSION=$(V) $(BUN) run --cwd packages/cli script/build.ts --single --outdir=$(ABS_OUTDIR)
 
 install-binary: install test-gate install-copy
 
