@@ -583,6 +583,10 @@ export function run(options: Options = {}): Effect.Effect<RunResult, never, Data
                   set: { value: { phase: "sessions", cursor: nextID.id }, time_updated: Date.now() },
                 })
                 .run()
+              // A forced re-run (key reset to phase "sessions") walks every legacy id and would
+              // otherwise rebuild projections for sessions already migrated, destroying v2-native
+              // messages. Existing rows are final; only new sessions are imported.
+              if (yield* tx.get(sql`SELECT 1 FROM session_v2 WHERE id = ${nextID.id}`)) return
               const projectID = projects.has(nextID.project_id) ? nextID.project_id : Project.ID.global
               if (projectID !== nextID.project_id)
                 yield* Effect.logWarning("Reassigned V1 session with missing project", {

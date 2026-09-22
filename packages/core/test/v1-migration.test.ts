@@ -1127,6 +1127,72 @@ describe("V1Migration database workflow", () => {
     )
   })
 
+  test("skips sessions already in session_v2 during a forced sessions re-run", async () => {
+    await database(
+      Effect.gen(function* () {
+        const { db } = yield* Database.Service
+        yield* db.run(
+          sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/tmp/test', 1, 2, '[]')`,
+        )
+        yield* db.run(
+          sql`INSERT INTO session (id, project_id, slug, directory, title, version, cost, time_created, time_updated) VALUES ('ses_native', 'global', 'native', '/tmp/test', 'Native', '1', 99, 1, 2)`,
+        )
+        yield* db.run(
+          sql`INSERT INTO session_v2 (id, project_id, slug, directory, title, version, cost, time_created, time_updated) VALUES ('ses_native', 'global', 'native', '/tmp/test', 'Native v2', '2', 7, 1, 5)`,
+        )
+        yield* db.run(
+          sql`INSERT INTO session_message (id, session_id, type, seq, time_created, time_updated, data) VALUES ('msg_native', 'ses_native', 'user', 0, 3, 3, '{"text":"native","time":{"created":3}}')`,
+        )
+        yield* db.run(sql`INSERT INTO event_sequence (aggregate_id, seq) VALUES ('ses_native', 0)`)
+        yield* db.run(
+          sql`INSERT INTO event (id, aggregate_id, seq, created, type, data) VALUES ('event_native', 'ses_native', 0, 1, 'session.renamed.1', '{}')`,
+        )
+        yield* db.run(
+          sql`INSERT INTO session (id, project_id, slug, directory, title, version, cost, time_created, time_updated) VALUES ('ses_new', 'global', 'new', '/tmp/test', 'New', '1', 99, 1, 2)`,
+        )
+        const source = user("msg_000000000060aaaaaaaaaaaaaa", {}, 10)
+        const sourcePart = part("prt_new", source.id, { type: "text", text: "hello" })
+        yield* db.run(
+          sql`INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (${source.id}, 'ses_new', 10, 11, ${source.data})`,
+        )
+        yield* db.run(
+          sql`INSERT INTO part (id, message_id, session_id, time_created, time_updated, data) VALUES ('prt_new', ${source.id}, 'ses_new', 1, 2, ${sourcePart.data})`,
+        )
+        yield* db.run(
+          sql`INSERT INTO kv (key, value, time_created, time_updated) VALUES ('migration.v1-v2', '{"phase":"sessions"}', 1, 1)`,
+        )
+
+        expect(yield* V1Migration.run()).toEqual({ status: "completed" })
+        expect(yield* db.get(sql`SELECT title, cost FROM session_v2 WHERE id = 'ses_native'`)).toEqual({
+          title: "Native v2",
+          cost: 7,
+        })
+        expect(yield* db.all(sql`SELECT id, seq, data FROM session_message WHERE session_id = 'ses_native'`)).toEqual([
+          { id: "msg_native", seq: 0, data: '{"text":"native","time":{"created":3}}' },
+        ])
+        expect(yield* db.get(sql`SELECT seq FROM event_sequence WHERE aggregate_id = 'ses_native'`)).toEqual({ seq: 0 })
+        expect(yield* db.all(sql`SELECT id FROM event WHERE aggregate_id = 'ses_native'`)).toEqual([
+          { id: "event_native" },
+        ])
+        expect(yield* db.get(sql`SELECT cost FROM session_v2 WHERE id = 'ses_new'`)).toEqual({ cost: 0 })
+        expect(
+          yield* db.all(sql`SELECT id, type, seq, data FROM session_message WHERE session_id = 'ses_new'`),
+        ).toEqual([
+          {
+            id: source.id,
+            type: "user",
+            seq: 0,
+            data: '{"text":"hello","time":{"created":10}}',
+          },
+        ])
+        expect(yield* db.get(sql`SELECT seq FROM event_sequence WHERE aggregate_id = 'ses_new'`)).toEqual({ seq: 0 })
+        expect(yield* db.get(sql`SELECT value FROM kv WHERE key = 'migration.v1-v2'`)).toEqual({
+          value: '{"phase":"completed"}',
+        })
+      }),
+    )
+  })
+
   test("rolls back one session atomically and resumes from the committed cursor", async () => {
     await database(
       Effect.gen(function* () {
