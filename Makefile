@@ -1,9 +1,11 @@
-.PHONY: help install install-binary clean build lint typecheck check test dev
+.PHONY: help install install-binary install-skip-tests install-binary-skip-tests clean build lint typecheck check test dev
 
 help:
 	@echo "Available targets:"
 	@echo "  install        Install dependencies"
 	@echo "  install-binary Build and install the opencode binary locally"
+	@echo "  install-skip-tests        Install without running tests"
+	@echo "  install-binary-skip-tests Build and install the opencode binary locally, skipping tests"
 	@echo "  build          Build the entire monorepo"
 	@echo "  lint           Run linting (oxlint)"
 	@echo "  typecheck      Run TypeScript type checking"
@@ -18,6 +20,13 @@ install: install-binary
 install-binary:
 	bun install
 	bun test --cwd packages/opencode --timeout 30000
+	cd packages/opencode && OPENCODE_CHANNEL=latest bun run build --single
+	./install --binary packages/opencode/dist/opencode-linux-x64/bin/opencode --no-modify-path
+
+install-skip-tests: install-binary-skip-tests
+
+install-binary-skip-tests:
+	bun install
 	cd packages/opencode && OPENCODE_CHANNEL=latest bun run build --single
 	./install --binary packages/opencode/dist/opencode-linux-x64/bin/opencode --no-modify-path
 
